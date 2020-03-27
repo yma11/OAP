@@ -117,8 +117,6 @@ Step 1. Make the following configuration changes in Spark configuration file `$S
 ```
 spark.memory.offHeap.enabled                true
 spark.memory.offHeap.size                   80g      # half of total memory size
-spark.sql.oap.fiberCache.memory.manager     offheap  # for dram cache, use 'offheap' as the memory manager
-conf spark.oap.cache.strategy               guava    # dram cache uses guava as the cache strategy
 spark.sql.oap.parquet.data.cache.enable     true     # for parquet fileformat
 spark.sql.oap.orc.data.cache.enable         true     # for orc fileformat
 spark.sql.orc.copyBatchToSpark              true     # for orc fileformat
@@ -165,16 +163,12 @@ Before configuring in OAP to use DCPMM cache, you need to make sure the followin
 
 - DCPMM hardwares are installed, formatted and mounted correctly on every cluster worker node. You will get a mounted directory to use if you have done this. Usually, the DCPMM on each socket will be mounted as a directory. For example, on a two sockets system, we may get two mounted directories named `/mnt/pmem0` and `/mnt/pmem1`.
 
-- [Memkind](http://memkind.github.io/memkind/) library has been installed on every cluster worker node if memkind/non-evictable cache strategies are chosen for DCPM cache. Please use the latest Memkind version. You can compile Memkind based on your system. We have a pre-build binary for x86 64bit CentOS Linux and you can download [libmemkind.so.0](https://github.com/Intel-bigdata/OAP/releases/download/v0.6.1-spark-2.4.4/libmemkind.so.0) and put the file to `/lib64/` directory in each worker node in cluster. Memkind library depends on libnuma at the runtime. You need to make sure libnuma already exists in worker node system.
-
-- [Vmemcache](https://github.com/pmem/vmemcache) library has been installed on every cluster worker node if vmemcache strategy is chosen for DCPM cache. You can follow the build/install steps from vmemcache website and make sure libvmemcache.so exist in '/lib64' directory in each worker node.
+- [Memkind](http://memkind.github.io/memkind/) library has been installed on every cluster worker nodes. Please use the latest Memkind version. You can compile Memkind based on your system. We have a pre-build binary for x86 64bit CentOS Linux and you can download [libmemkind.so.0](https://github.com/Intel-bigdata/OAP/releases/download/v0.6.1-spark-2.4.4/libmemkind.so.0) and put the file to `/lib64/` directory in each worker node in cluster. Memkind library depends on libnuma at the runtime. You need to make sure libnuma already exists in worker node system.
 
 ##### Configure for NUMA
 To achieve the optimum performance, we need to configure NUMA for binding executor to NUMA node and try access the right DCPMM device on the same NUMA node. You need install numactl on each worker node. For example, on CentOS, run following command to install numactl.
 
 ```yum install numactl -y ```
-
-You also need to build spark from source to enable numa-binding support. Refer [enable-numa-binding-for-dcpmm-in-spark](./Developer-Guide.md#enable-numa-binding-for-dcpmm-in-spark).
 
 ##### Configure for DCPMM 
 Create a configuration file named “persistent-memory.xml” under "$SPARK_HOME/conf/" if it doesn't exist. Use below contents as a template and change the “initialPath” to your mounted paths for DCPMM devices. 
@@ -200,48 +194,35 @@ spark.yarn.numa.enabled                                    true            # ena
 spark.executorEnv.MEMKIND_ARENA_NUM_PER_KIND               1
 spark.memory.offHeap.enabled                               false
 spark.speculation                                          false
+spark.sql.oap.fiberCache.memory.manager                    pm              # use DCPMM as cache media
 spark.sql.oap.fiberCache.persistent.memory.initial.size    256g            # DCPMM capacity per executor
 spark.sql.oap.fiberCache.persistent.memory.reserved.size   50g             # Reserved space per executor
-spark.sql.extensions                  org.apache.spark.sql.OapExtensions   # Enable OAP jar in Spark
+spark.sql.oap.parquet.data.cache.enable                    true            # for parquet fileformat
+spark.sql.oap.orc.data.cache.enable                        true            # for orc fileformat
+spark.sql.orc.copyBatchToSpark                             true            # for orc fileformat
 ```
-Also need to add OAP jar absolute file path in spark.executor.extraClassPath and spark.driver.extraClassPath.
-
 You need to change the value for spark.executor.instances, spark.sql.oap.fiberCache.persistent.memory.initial.size, and spark.sql.oap.fiberCache.persistent.memory.reserved.size according to your real environment. 
 
 - spark.executor.instances: We suggest to configure the value to 2x number of the worker nodes considering NUMA binding is enabled. With each worker node runs two executors, each executor will be bound to one of the two sockets. And accesses the corresponding DCPMM device on that socket.
 - spark.sql.oap.fiberCache.persistent.memory.initial.size: It is configured to the available DCPMM capacity to used as data cache per exectutor.
 - spark.sql.oap.fiberCache.persistent.memory.reserved.size: When we use DCPMM as memory through memkind library, some portion of the space needs to be reserved for memory management overhead, such as memory segmentation. We suggest reserving 20% - 25% of the available DCPMM capacity to avoid memory allocation failure. But even with an allocation failure, OAP will continue the operation to read data from original input data and will not cache the data block.
 
-Besides above configurations, there are other specific parameters based on different DCPM cache strategies(guava, non-evictable, vmemcache), see below details:
+##### Verify DCPMM cache functionality
 
-##### Guava Cache Strategy
+After the configuration, and you need to restart Spark Thrift Server to make the configuration changes taking effect. You can take the same steps described in [Use DRAM Cache](#Use-DRAM-Cache) to test and verify the cache is in working.
 
-Guava cache is based on memkind library, built on top of jemalloc and provides memory characteristics. To use it in your workload, follow [prerequisites](#prerequisites-1) to set up DCPMM hardware and memkind library correctly. Then follow bellow configurations.
-
-For Parquet data format, provides following conf options:
-```
---conf spark.sql.oap.parquet.data.cache.enable=true \
---conf spark.sql.oap.fiberCache.memory.manager=pm \
---conf spark.oap.cache.strategy=guava
---conf spark.sql.oap.fiberCache.persistent.memory.initial.size=*g \
---conf spark.sql.extensions=org.apache.spark.sql.OapExtensions \
-```
-For Orc data format, provides following conf options:
-```
---conf spark.sql.orc.copyBatchToSpark=true \
---conf spark.sql.oap.orc.data.cache.enable=true \
---conf spark.sql.oap.orc.enable=true \
---conf spark.sql.oap.fiberCache.memory.manager=pm \
---conf spark.oap.cache.strategy=guava \
---conf spark.sql.oap.fiberCache.persistent.memory.initial.size=*g \
---conf spark.sql.extensions=org.apache.spark.sql.OapExtensions \
-```
-
-##### Use Non-evictable Cache strategy
+##### Non-evictable Cache strategy
 
 Another cache strategy named Non-evictable is also supported in OAP based on memkind library for DCPMM.
 
-To apply Non-evictable cache strategy in your workload, please follow [prerequisites](#prerequisites-1) to set up DCPMM hardware and memkind library correctly. Then follow bellow configurations.
+To apply Non-evictable cache strategy in your workload. Please follow prerequisites to set up DCPMM hardware and memkind library correctly. Then follow bellow configurations.
+
+Enable OAP extension in spark-defaults.conf.
+
+```
+spark.sql.extensions=org.apache.spark.sql.OapExtensions
+```
+Also need to add OAP jar file in spark.executor.extraClassPath and spark.driver.extraClassPath.
 
 For Parquet data format, provides following conf options:
 ```
@@ -262,9 +243,21 @@ For Orc data format, provides following conf options:
 --conf spark.sql.extensions=org.apache.spark.sql.OapExtensions \
 ```
 
-### Use Vmemcache Cache Strategy
+### Use Vmemcache Cache
+Vmemcache cache strategy is implemented based on libvmemcache (buffer based LRU cache), which provides data store API using <key, value> as input.  Refer following steps to apply vmemcache cache strategy in your workload.
 
-Vmemcache cache strategy is implemented based on libvmemcache (buffer based LRU cache), which provides data store API using <key, value> as input. To use this strategy, follow [prerequisites](#prerequisites-1) to set up DCPMM hardware and vmemcache library correctly, then refer below configurations to apply vmemcache cache strategy in your workload.
+Step 1. Install libvmemcache on each node. Please refer [vmemcache](https://github.com/pmem/vmemcache).
+        
+Step 2. Please follow prerequisites to configure DCPMM hardware 
+
+Step 3. Configure properties to enable vmemcache support in OAP
+
+Enable OAP extension in spark-defaults.conf.
+
+```
+spark.sql.extensions=org.apache.spark.sql.OapExtensions
+```
+Also need to add OAP jar file in spark.executor.extraClassPath and spark.driver.extraClassPath.
 
 For Parquet data format, provides following conf options:
 
@@ -289,11 +282,6 @@ For Orc data format, provides following conf options:
 --conf spark.sql.extensions=org.apache.spark.sql.OapExtensions \
 ```
 Note: If "PendingFiber Size" (on spark web-UI OAP page) is large, or some tasks failed due to "cache guardian use too much memory", user could set spark.sql.oap.cache.guardian.memory.size config to a larger number, which default size is 10GB. Besides, user could increase spark.sql.oap.cache.guardian.free.thread.nums or decrease spark.sql.oap.cache.dispose.timeout.ms to accelerate memory free.
-
-
-##### Verify DCPMM cache functionality
-
-After the configuration, and you need to restart Spark Thrift Server to make the configuration changes taking effect. You can take the same steps described in [Use DRAM Cache](#Use-DRAM-Cache) to test and verify the cache is in working. Besides, you can verify numa binding status by confirming keywords like "numactl --cpubind=1 --membind=1" contained in executor launch command. You can also check DCPM cache size by checking the usage of disk space using command 'df -h'. For Guava/Non-evictable strategies, the command will show disk space usage increases along with workload execution. But for vmemcache strategy, you will see disk usage becomes to cache initial size once DCPM cache initialized even workload haven't actually used so much space and this value doesn't change during workload execution.
 
 ## Run TPC-DS Benchmark for OAP Cache
 
