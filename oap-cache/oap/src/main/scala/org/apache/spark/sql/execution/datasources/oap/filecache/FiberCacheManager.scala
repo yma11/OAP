@@ -55,7 +55,8 @@ private[sql] class FiberCacheManager(
   def dcpmmWaitingThreshold: Long = _dcpmmWaitingThreshold
 
   private val cacheBackend: OapCache = {
-    val cacheName = sparkEnv.conf.get("spark.oap.cache.strategy", DEFAULT_CACHE_STRATEGY)
+    val cacheName =
+      sparkEnv.conf.get(OapConf.OAP_FIBERCACHE_STRATEGY.key, DEFAULT_CACHE_STRATEGY).toLowerCase
     if (cacheName.equals(GUAVA_CACHE)) {
       val separateCache = sparkEnv.conf.getBoolean(
         OapConf.OAP_INDEX_DATA_SEPARATION_ENABLE.key,

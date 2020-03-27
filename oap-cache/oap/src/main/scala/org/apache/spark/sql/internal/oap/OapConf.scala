@@ -169,6 +169,16 @@ object OapConf {
       .stringConf
       .createWithDefault("offheap")
 
+  val OAP_FIBERCACHE_STRATEGY =
+    SqlConfAdapter.buildConf("spark.oap.cache.strategy")
+      .internal()
+      .doc("Sets the implement of cache strategy, it currently supports guava(Guava Cache), " +
+        "vmem(VMemCache), simple, noevict." +
+        "To enable mix mode, you need to set " +
+        "spark.sql.oap.index.data.cache.separation.enable to true")
+      .stringConf
+      .createWithDefault("guava")
+
   val OAP_MIX_INDEX_MEMORY_MANAGER =
     SqlConfAdapter.buildConf("spark.sql.oap.mix.index.memory.manager")
       .internal()
