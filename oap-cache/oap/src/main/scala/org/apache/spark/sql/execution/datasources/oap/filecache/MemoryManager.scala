@@ -90,25 +90,33 @@ private[sql] object MemoryManager {
   private[filecache] val DUMMY_BLOCK_ID = TestBlockId("oap_memory_request_block")
 
   def apply(sparkEnv: SparkEnv): MemoryManager = {
-    apply(sparkEnv, OapConf.OAP_FIBERCACHE_MEMORY_MANAGER)
+    apply(sparkEnv, OapConf.OAP_FIBERCACHE_STRATEGY)
   }
 
   def apply(sparkEnv: SparkEnv, configEntry: ConfigEntry[String]): MemoryManager = {
     val conf = sparkEnv.conf
-    val memoryManagerOpt =
+    val cacheStrategyOpt =
       conf.get(
         configEntry.key,
         configEntry.defaultValue.get).toLowerCase
-    memoryManagerOpt match {
-      case "offheap" => new OffHeapMemoryManager(sparkEnv)
-      case "pm" => new PersistentMemoryManager(sparkEnv)
-      case "hybrid" => new HybridMemoryManager(sparkEnv)
-      case "tmp" => new TmpDramMemoryManager(sparkEnv)
+    cacheStrategyOpt match {
+      case "guava" =>
+        val memoryManagerOpt =
+          conf.get(OapConf.OAP_FIBERCACHE_MEMORY_MANAGER.key, "offheap").toLowerCase
+        memoryManagerOpt match {
+          case "offheap" => new OffHeapMemoryManager(sparkEnv)
+          case "pm" => new PersistentMemoryManager(sparkEnv)
+          case "_" => throw new UnsupportedOperationException(s"For cache strategy" +
+            s" ${cacheStrategyOpt}, unsupported memorymanager ${memoryManagerOpt}")
+        }
+      case "nonevict" => new HybridMemoryManager(sparkEnv)
+      case "vmem" => new TmpDramMemoryManager(sparkEnv)
       case _ => throw new UnsupportedOperationException(
-        s"The memory manager: ${memoryManagerOpt} is not supported now")
+        s"The memory manager: ${cacheStrategyOpt} is not supported now")
     }
   }
 }
+
 
 /**
  * An memory manager which support allocate OFF_HEAP memory. It will acquire fixed amount of
