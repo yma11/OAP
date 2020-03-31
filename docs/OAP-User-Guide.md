@@ -117,8 +117,8 @@ Step 1. Make the following configuration changes in Spark configuration file `$S
 ```
 spark.memory.offHeap.enabled                true
 spark.memory.offHeap.size                   80g      # half of total memory size
-spark.sql.oap.fiberCache.memory.manager     offheap  # for dram cache, use 'offheap' as the memory manager
-conf spark.oap.cache.strategy               guava    # dram cache uses guava as the cache strategy
+spark.sql.oap.fiberCache.memory.manager     offheap  # use "offheap" for dram cache, which is also the default value of this configuration
+spark.oap.cache.strategy                    guava    # use "guava" for dram cache, which is also the default value of this configuration
 spark.sql.oap.parquet.data.cache.enable     true     # for parquet fileformat
 spark.sql.oap.orc.data.cache.enable         true     # for orc fileformat
 spark.sql.orc.copyBatchToSpark              true     # for orc fileformat
@@ -236,21 +236,21 @@ Guava cache is based on memkind library, built on top of jemalloc and provides m
 
 For Parquet data format, provides following conf options:
 ```
---conf spark.sql.oap.parquet.data.cache.enable=true \
---conf spark.sql.oap.fiberCache.memory.manager=pm \
---conf spark.oap.cache.strategy=guava
---conf spark.sql.oap.fiberCache.persistent.memory.initial.size=*g \
---conf spark.sql.extensions=org.apache.spark.sql.OapExtensions \
+spark.sql.oap.parquet.data.cache.enable      true
+spark.sql.oap.fiberCache.memory.manager      pm
+spark.oap.cache.strategy                     guava
+spark.sql.oap.fiberCache.persistent.memory.initial.size    *g
+spark.sql.extensions                         org.apache.spark.sql.OapExtensions
 ```
 For Orc data format, provides following conf options:
 ```
---conf spark.sql.orc.copyBatchToSpark=true \
---conf spark.sql.oap.orc.data.cache.enable=true \
---conf spark.sql.oap.orc.enable=true \
---conf spark.sql.oap.fiberCache.memory.manager=pm \
---conf spark.oap.cache.strategy=guava \
---conf spark.sql.oap.fiberCache.persistent.memory.initial.size=*g \
---conf spark.sql.extensions=org.apache.spark.sql.OapExtensions \
+spark.sql.orc.copyBatchToSpark         true
+spark.sql.oap.orc.data.cache.enable    true
+spark.sql.oap.orc.enable               true
+spark.sql.oap.fiberCache.memory.manager  pm
+spark.oap.cache.strategy               guava
+spark.sql.oap.fiberCache.persistent.memory.initial.size   *g
+spark.sql.extensions                   org.apache.spark.sql.OapExtensions
 ```
 
 #### Use Non-evictable Cache strategy
@@ -261,21 +261,21 @@ To apply Non-evictable cache strategy in your workload, please follow [prerequis
 
 For Parquet data format, provides following conf options:
 ```
---conf spark.sql.oap.parquet.data.cache.enable=true \
---conf spark.sql.oap.fiberCache.memory.manager=hybrid \
---conf spark.oap.cache.strategy=noevict \
---conf spark.sql.oap.fiberCache.persistent.memory.initial.size=*g \
---conf spark.sql.extensions=org.apache.spark.sql.OapExtensions \
+spark.sql.oap.parquet.data.cache.enable        true
+spark.sql.oap.fiberCache.memory.manager        hybrid
+spark.oap.cache.strategy                       noevict
+spark.sql.oap.fiberCache.persistent.memory.initial.size     *g
+spark.sql.extensions                           org.apache.spark.sql.OapExtensions
 ```
 For Orc data format, provides following conf options:
 ```
---conf spark.sql.orc.copyBatchToSpark=true \
---conf spark.sql.oap.orc.data.cache.enable=true \
---conf spark.sql.oap.orc.enable=true \
---conf spark.sql.oap.fiberCache.memory.manager=hybrid \
---conf spark.oap.cache.strategy=noevict \
---conf spark.sql.oap.fiberCache.persistent.memory.initial.size=*g \
---conf spark.sql.extensions=org.apache.spark.sql.OapExtensions \
+spark.sql.orc.copyBatchToSpark         true 
+spark.sql.oap.orc.data.cache.enable    true
+spark.sql.oap.orc.enable               true
+spark.sql.oap.fiberCache.memory.manager    hybrid
+spark.oap.cache.strategy               noevict
+spark.sql.oap.fiberCache.persistent.memory.initial.size   *g
+spark.sql.extensions                   org.apache.spark.sql.OapExtensions
 ```
 
 #### Use Vmemcache Cache Strategy
@@ -285,24 +285,24 @@ Vmemcache cache strategy is implemented based on libvmemcache (buffer based LRU 
 For Parquet data format, provides following conf options:
 
 ```
---conf spark.sql.oap.parquet.enable=true \
---conf spark.sql.oap.parquet.data.cache.enable=true \
---conf spark.sql.oap.fiberCache.memory.manager=tmp \
---conf spark.oap.cache.strategy=vmem \
---conf spark.sql.oap.fiberCache.persistent.memory.initial.size=*g \
---conf spark.sql.extensions=org.apache.spark.sql.OapExtensions \
+spark.sql.oap.parquet.enable               true
+spark.sql.oap.parquet.data.cache.enable    true
+spark.sql.oap.fiberCache.memory.manager    tmp
+spark.oap.cache.strategy                   vmem
+spark.sql.oap.fiberCache.persistent.memory.initial.size   *g
+spark.sql.extensions                       org.apache.spark.sql.OapExtensions
 ```
 
 For Orc data format, provides following conf options:
 
 ```
---conf spark.sql.oap.orc.enable=true \
---conf spark.sql.orc.copyBatchToSpark=true \
---conf spark.sql.oap.orc.data.cache.enable=true \
---conf spark.sql.oap.fiberCache.memory.manager=tmp \
---conf spark.oap.cache.strategy=vmem \
---conf spark.sql.oap.fiberCache.persistent.memory.initial.size=*g \
---conf spark.sql.extensions=org.apache.spark.sql.OapExtensions \
+spark.sql.oap.orc.enable                      true
+spark.sql.orc.copyBatchToSpark                true
+spark.sql.oap.orc.data.cache.enable           true
+spark.sql.oap.fiberCache.memory.manager       tmp
+spark.oap.cache.strategy                      vmem
+spark.sql.oap.fiberCache.persistent.memory.initial.size   *g
+spark.sql.extensions                          org.apache.spark.sql.OapExtensions
 ```
 Note: If "PendingFiber Size" (on spark web-UI OAP page) is large, or some tasks failed due to "cache guardian use too much memory", user could set spark.sql.oap.cache.guardian.memory.size config to a larger number, which default size is 10GB. Besides, user could increase spark.sql.oap.cache.guardian.free.thread.nums or decrease spark.sql.oap.cache.dispose.timeout.ms to accelerate memory free.
 
