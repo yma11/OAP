@@ -69,8 +69,8 @@ private[filecache] class CacheMemoryAllocator(sparkEnv: SparkEnv)
 
   private def init(): (MemoryManager, MemoryManager) = {
     if (_separateMemory) {
-      val dataManager = MemoryManager(sparkEnv, OapConf.OAP_MIX_DATA_MEMORY_MANAGER)
-      val indexManager = MemoryManager(sparkEnv, OapConf.OAP_MIX_INDEX_MEMORY_MANAGER)
+      val dataManager = MemoryManager(sparkEnv, OapConf.OAP_FIBERCACHE_STRATEGY, FiberType.DATA)
+      val indexManager = MemoryManager(sparkEnv, OapConf.OAP_FIBERCACHE_STRATEGY, FiberType.INDEX)
       if (indexManager.getClass.equals(dataManager.getClass)) {
         throw new UnsupportedOperationException(
           "Index Cache type and Data Cache type need to be different in Mixed mode")
