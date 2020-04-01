@@ -90,15 +90,11 @@ private[sql] object MemoryManager {
   private[filecache] val DUMMY_BLOCK_ID = TestBlockId("oap_memory_request_block")
 
   def apply(sparkEnv: SparkEnv): MemoryManager = {
-    apply(sparkEnv, OapConf.OAP_FIBERCACHE_MEMORY_MANAGER)
+    apply(sparkEnv, OapConf.OAP_FIBERCACHE_STRATEGY, "data")
   }
 
-  def apply(sparkEnv: SparkEnv, configEntry: ConfigEntry[String]): MemoryManager = {
-    val conf = sparkEnv.conf
-    val memoryManagerOpt =
-      conf.get(
-        configEntry.key,
-        configEntry.defaultValue.get).toLowerCase
+
+  def apply(sparkEnv: SparkEnv, memoryManagerOpt: String): MemoryManager = {
     memoryManagerOpt match {
       case "offheap" => new OffHeapMemoryManager(sparkEnv)
       case "pm" => new PersistentMemoryManager(sparkEnv)
@@ -106,6 +102,42 @@ private[sql] object MemoryManager {
       case "tmp" => new TmpDramMemoryManager(sparkEnv)
       case _ => throw new UnsupportedOperationException(
         s"The memory manager: ${memoryManagerOpt} is not supported now")
+    }
+  }
+  def apply(sparkEnv: SparkEnv, configEntry: ConfigEntry[String],
+            cacheType: String): MemoryManager = {
+    val conf = sparkEnv.conf
+    val cacheStrategyOpt =
+      conf.get(
+        configEntry.key,
+        configEntry.defaultValue.get).toLowerCase
+    cacheStrategyOpt match {
+      case "guava" =>
+        val memoryManagerOpt =
+          conf.get(OapConf.OAP_FIBERCACHE_MEMORY_MANAGER.key, "offheap").toLowerCase
+        memoryManagerOpt match {
+          case "offheap" | "pm" => apply(sparkEnv, memoryManagerOpt)
+          case _ => throw new UnsupportedOperationException(s"For cache strategy" +
+            s" ${cacheStrategyOpt}, memorymanager should be 'offheap' or 'pm'" +
+            s" but not ${memoryManagerOpt}.")
+        }
+      case "nonevict" => new HybridMemoryManager(sparkEnv)
+      case "vmem" => new TmpDramMemoryManager(sparkEnv)
+      case "mix" =>
+        cacheType match {
+          case "data" =>
+            val dataMemoryManagerOpt =
+              conf.get(OapConf.OAP_MIX_DATA_MEMORY_MANAGER.key, "pm").toLowerCase
+            apply(sparkEnv, dataMemoryManagerOpt)
+          case "index" =>
+            val indexMemoryManagerOpt =
+              conf.get(OapConf.OAP_MIX_INDEX_MEMORY_MANAGER.key, "offheap").toLowerCase
+            apply(sparkEnv, indexMemoryManagerOpt)
+          case _ =>
+            null
+        }
+      case _ => throw new UnsupportedOperationException(
+        s"The memory manager: ${cacheStrategyOpt} is not supported now")
     }
   }
 }

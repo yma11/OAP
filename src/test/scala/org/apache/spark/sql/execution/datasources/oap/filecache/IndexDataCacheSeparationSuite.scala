@@ -44,6 +44,8 @@ class IndexDataCacheSeparationSuite extends SharedOapContext with BeforeAndAfter
 
   oapSparkConf.set("spark.sql.oap.index.data.cache.separation.enable", "true")
   oapSparkConf.set("spark.oap.cache.strategy", "mix")
+  oapSparkConf.set("spark.sql.oap.fiberCache.memory.manager", "mix")
+  oapSparkConf.set("spark.sql.oap.mix.data.memory.manager", "offheap")
 
   private def fiberCacheManager = OapRuntime.getOrCreate.fiberCacheManager
 
@@ -53,7 +55,14 @@ class IndexDataCacheSeparationSuite extends SharedOapContext with BeforeAndAfter
   override def afterEach(): Unit = {
     fiberCacheManager.clearAllFibers()
   }
+  override def afterAll(): Unit = {
+    // restore oapSparkConf to default
+    oapSparkConf.set("spark.oap.cache.strategy", "guava")
+    oapSparkConf.set("spark.sql.oap.fiberCache.memory.manager", "offheap")
+    oapSparkConf.set("spark.sql.oap.index.data.cache.separation.enable", "false")
+    oapSparkConf.set("spark.sql.oap.mix.data.memory.manager", "pm")
 
+  }
   test("unit test") {
     val dataMemorySizeInMB = (dataCacheMemorySize / mbSize).toInt
     val origStats = fiberCacheManager.cacheStats
