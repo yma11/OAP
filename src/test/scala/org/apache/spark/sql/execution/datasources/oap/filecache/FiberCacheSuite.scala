@@ -30,7 +30,7 @@ import org.apache.spark.sql.types._
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.util.{ByteBufferOutputStream, Utils}
 
-class MemoryManagerSuite extends SharedOapContext {
+class FiberCacheSuite extends SharedOapContext {
 
   private var random: Random = _
   private var values: Seq[Any] = _
