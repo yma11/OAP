@@ -105,6 +105,7 @@ private[sql] object MemoryManager {
         s"The memory manager: ${memoryManagerOpt} is not supported now")
     }
   }
+
   def apply(sparkEnv: SparkEnv, configEntry: ConfigEntry[String],
             fiberType: FiberType): MemoryManager = {
     val conf = sparkEnv.conf
@@ -138,7 +139,7 @@ private[sql] object MemoryManager {
             null
         }
       case _ => throw new UnsupportedOperationException(
-        s"The memory manager: ${cacheStrategyOpt} is not supported now")
+        s"The cache strategy: ${cacheStrategyOpt} is not supported now")
     }
   }
 }
