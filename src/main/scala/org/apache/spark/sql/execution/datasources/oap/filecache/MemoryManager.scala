@@ -20,6 +20,8 @@ package org.apache.spark.sql.execution.datasources.oap.filecache
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 
+import scala.util.Success
+
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.ConfigEntry
@@ -31,7 +33,6 @@ import org.apache.spark.sql.internal.oap.OapConf
 import org.apache.spark.storage.{BlockManager, TestBlockId}
 import org.apache.spark.unsafe.{PersistentMemoryPlatform, Platform, VMEMCacheJNI}
 import org.apache.spark.util.Utils
-
 
 object SourceEnum extends Enumeration {
   type SourceEnum = Value
@@ -263,7 +264,14 @@ private[filecache] class PersistentMemoryManager(sparkEnv: SparkEnv)
     // The NUMA id should be set when the executor process start up. However, Spark don't
     // support NUMA binding currently.
     var numaId = conf.getInt("spark.executor.numa.id", -1)
-    val executorId = sparkEnv.executorId.toInt
+    val executorIdStr = sparkEnv.executorId
+    scala.util.Try(executorIdStr.toInt) match {
+      case Success(_) => logDebug("valid executor id for numa binding.") ;
+      case _ =>
+        logInfo("invalid executor id for numa binding.")
+        return 0L
+    }
+    val executorId = executorIdStr.toInt
     val map = PersistentMemoryConfigUtils.parseConfig(conf)
     if (numaId == -1) {
       logWarning(s"Executor ${executorId} is not bind with NUMA. It would be better to bind " +
@@ -342,7 +350,14 @@ private[filecache] class HybridMemoryManager(sparkEnv: SparkEnv)
     // The NUMA id should be set when the executor process start up. However, Spark don't
     // support NUMA binding currently.
     var numaId = conf.getInt("spark.executor.numa.id", -1)
-    val executorId = sparkEnv.executorId.toInt
+    val executorIdStr = sparkEnv.executorId
+    scala.util.Try(executorIdStr.toInt) match {
+      case Success(_) => logDebug("valid executor id for numa binding.") ;
+      case _ =>
+        logInfo("invalid executor id for numa binding.")
+        return(0L, 0L, 0L, 0L)
+    }
+    val executorId = executorIdStr.toInt
     val map = PersistentMemoryConfigUtils.parseConfig(conf)
     if (numaId == -1) {
       logWarning(s"Executor ${executorId} is not bind with NUMA. It would be better to bind " +
