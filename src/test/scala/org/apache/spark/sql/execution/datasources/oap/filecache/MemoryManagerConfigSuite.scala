@@ -28,6 +28,7 @@ class MemoryManagerConfigSuite extends SharedOapContext with Logging{
     // restore oapSparkConf to default
     oapSparkConf.set("spark.oap.cache.strategy", "guava")
     oapSparkConf.set("spark.sql.oap.fiberCache.memory.manager", "offheap")
+    oapSparkConf.set("spark.sql.oap.mix.data.cache.backend", "guavab")
   }
 
   test("guava cache with offheap memory manager") {
@@ -54,9 +55,25 @@ class MemoryManagerConfigSuite extends SharedOapContext with Logging{
     assert(memoryManager.isInstanceOf[TmpDramMemoryManager])
   }
 
+  test("vmem with memory manager set to pm") {
+    val sparkEnv = SparkEnv.get
+    sparkEnv.conf.set("spark.oap.cache.strategy", "vmem")
+    sparkEnv.conf.set("spark.sql.oap.fiberCache.memory.manager", "pm")
+    val memoryManager = MemoryManager(sparkEnv)
+    assert(memoryManager.isInstanceOf[TmpDramMemoryManager])
+  }
+
   test("nonevict with hybrid memory manager") {
     val sparkEnv = SparkEnv.get
     sparkEnv.conf.set("spark.oap.cache.strategy", "nonevict")
+    val memoryManager = MemoryManager(sparkEnv)
+    assert(memoryManager.isInstanceOf[HybridMemoryManager])
+  }
+
+  test("nonevict with memory manager set to pm") {
+    val sparkEnv = SparkEnv.get
+    sparkEnv.conf.set("spark.oap.cache.strategy", "nonevict")
+    sparkEnv.conf.set("spark.sql.oap.fiberCache.memory.manager", "pm")
     val memoryManager = MemoryManager(sparkEnv)
     assert(memoryManager.isInstanceOf[HybridMemoryManager])
   }
@@ -92,6 +109,16 @@ class MemoryManagerConfigSuite extends SharedOapContext with Logging{
     val sparkEnv = SparkEnv.get
     sparkEnv.conf.set("spark.oap.cache.strategy", "mix")
     sparkEnv.conf.set("spark.sql.oap.mix.data.memory.manager", "pm")
+    val dataMemoryManager = MemoryManager(sparkEnv,
+      OapConf.OAP_FIBERCACHE_STRATEGY, FiberType.DATA)
+    assert(dataMemoryManager.isInstanceOf[PersistentMemoryManager])
+  }
+
+  test("mix cache not impacted by cachebackend setting") {
+    val sparkEnv = SparkEnv.get
+    sparkEnv.conf.set("spark.oap.cache.strategy", "mix")
+    sparkEnv.conf.set("spark.sql.oap.mix.data.memory.manager", "pm")
+    sparkEnv.conf.set("spark.sql.oap.mix.data.cache.backend", "vmem")
     val dataMemoryManager = MemoryManager(sparkEnv,
       OapConf.OAP_FIBERCACHE_STRATEGY, FiberType.DATA)
     assert(dataMemoryManager.isInstanceOf[PersistentMemoryManager])
