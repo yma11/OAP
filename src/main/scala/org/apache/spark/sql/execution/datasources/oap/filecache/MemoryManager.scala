@@ -137,17 +137,21 @@ private[sql] object MemoryManager extends Logging {
         }
         new TmpDramMemoryManager(sparkEnv)
       case "mix" =>
-        fiberType match {
-          case FiberType.DATA =>
-            val dataMemoryManagerOpt =
-              conf.get(OapConf.OAP_MIX_DATA_MEMORY_MANAGER.key, "pm").toLowerCase
-            apply(sparkEnv, dataMemoryManagerOpt)
-          case FiberType.INDEX =>
-            val indexMemoryManagerOpt =
-              conf.get(OapConf.OAP_MIX_INDEX_MEMORY_MANAGER.key, "offheap").toLowerCase
-            apply(sparkEnv, indexMemoryManagerOpt)
-          case _ =>
-            null
+        if (!memoryManagerOpt.equals("mix")) {
+          apply(sparkEnv, memoryManagerOpt)
+        } else {
+          fiberType match {
+            case FiberType.DATA =>
+              val dataMemoryManagerOpt =
+                conf.get(OapConf.OAP_MIX_DATA_MEMORY_MANAGER.key, "pm").toLowerCase
+              apply(sparkEnv, dataMemoryManagerOpt)
+            case FiberType.INDEX =>
+              val indexMemoryManagerOpt =
+                conf.get(OapConf.OAP_MIX_INDEX_MEMORY_MANAGER.key, "offheap").toLowerCase
+              apply(sparkEnv, indexMemoryManagerOpt)
+            case _ =>
+              null
+          }
         }
       case _ => throw new UnsupportedOperationException(
         s"The cache strategy: ${cacheStrategyOpt} is not supported now")
