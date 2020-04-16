@@ -146,14 +146,8 @@ class MemoryManagerConfigSuite extends SharedOapContext with Logging{
     sparkEnv.conf.set("spark.sql.oap.fiberCache.memory.manager", "mix")
     sparkEnv.conf.set("spark.sql.oap.mix.data.memory.manager", "hybrid")
     sparkEnv.conf.set("spark.sql.oap.mix.data.cache.backend", "guava")
-    var exceptionCaught = false
-    try {
-      MemoryManager(sparkEnv, OapConf.OAP_FIBERCACHE_STRATEGY, FiberType.DATA)
-    } catch {
-      case ex: UnsupportedOperationException =>
-        exceptionCaught = true
-    }
-    assert(exceptionCaught)
+    assertThrows[UnsupportedOperationException](
+      MemoryManager(sparkEnv, OapConf.OAP_FIBERCACHE_STRATEGY, FiberType.DATA))
   }
 
   test("mix cache with separate memory manager using incorrect vmem setting") {

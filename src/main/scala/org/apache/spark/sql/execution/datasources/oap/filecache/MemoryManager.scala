@@ -111,7 +111,8 @@ private[sql] object MemoryManager extends Logging {
         }
       case _ =>
         logInfo("current cache type may need further compatibility" +
-          " check against backend cache strategy and memory manager.")
+          " check against backend cache strategy and memory manager. " +
+          "Please refer enabling-indexdata-cache-separation part in OAP-User-Guide.md.")
     }
   }
 
