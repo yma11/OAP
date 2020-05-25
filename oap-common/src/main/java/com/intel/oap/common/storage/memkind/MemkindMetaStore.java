@@ -12,7 +12,7 @@ public class MemkindMetaStore implements PMemMetaStore {
     ConcurrentHashMap<String, MetaData> metaHashMap = new ConcurrentHashMap();
 
     @Override
-    public PMemPhysicalAddress getPMemIDByLogicalID(byte[] id, int chunkID) {
+    public PMemPhysicalAddress getPhysicalAddressByID(byte[] id, int chunkID) {
         StringBuilder keyBuilder = new StringBuilder();
         keyBuilder.append(chunkID).append(new String(id));
         return PMemHashMap.get(keyBuilder.toString());
@@ -24,7 +24,7 @@ public class MemkindMetaStore implements PMemMetaStore {
     }
 
     @Override
-    public void putPMemID(byte[] id, int chunkID, PMemPhysicalAddress pMemPhysicalAddress) {
+    public void putPhysicalAddress(byte[] id, int chunkID, PMemPhysicalAddress pMemPhysicalAddress) {
         StringBuilder keyBuilder = new StringBuilder();
         keyBuilder.append(chunkID).append(new String(id));
         PMemHashMap.put(keyBuilder.toString(), pMemPhysicalAddress);

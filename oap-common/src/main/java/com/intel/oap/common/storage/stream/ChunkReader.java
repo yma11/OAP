@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public abstract class ChunkReader {
-    private PMemManager pMemManager;
+    public PMemManager pMemManager;
     private byte[] logicalID;
     private int chunkID = 0;
     private ByteBuffer remainingBuffer;
@@ -43,7 +43,7 @@ public abstract class ChunkReader {
         if (chunkID == metaData.getTotalChunk() && metaData.isHasDiskData()) {
             size = readFromDisk(remainingBuffer);
         } else {
-            PMemPhysicalAddress id = pMemManager.getpMemMetaStore().getPMemIDByLogicalID(logicalID, chunkID);
+            PMemPhysicalAddress id = pMemManager.getpMemMetaStore().getPhysicalAddressByID(logicalID, chunkID);
             chunkID++;
             size = readFromPMem(id, remainingBuffer);
         }

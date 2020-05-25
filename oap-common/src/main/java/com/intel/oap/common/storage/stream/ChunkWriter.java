@@ -5,9 +5,9 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public abstract class ChunkWriter {
-    private PMemManager pMemManager;
-    private byte[] logicalID;
-    private int chunkID = 0;
+    protected PMemManager pMemManager;
+    protected byte[] logicalID;
+    protected int chunkID = 0;
     private ByteBuffer remainingBuffer;
     private boolean fallbackTriggered = false;
     private FileOutputStream outputStream = null;
@@ -49,7 +49,7 @@ public abstract class ChunkWriter {
                 PMemPhysicalAddress id = writeInternal(byteBuffer);
                 chunkID++;
                 pMemManager.getStats().increaseSize(dataSizeInByte);
-                pMemManager.getpMemMetaStore().putPMemID(logicalID, chunkID, id);
+                pMemManager.getpMemMetaStore().putPhysicalAddress(logicalID, chunkID, id);
             } catch (RuntimeException re) {
                 // TODO Log Warning
                 fallbackTriggered = true;
@@ -85,4 +85,5 @@ public abstract class ChunkWriter {
      * Do some clean up work if needed.
      */
     protected abstract void closeInternal();
+
 }
