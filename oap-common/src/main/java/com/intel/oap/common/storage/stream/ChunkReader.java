@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public abstract class ChunkReader {
-    public PMemManager pMemManager;
+    protected PMemManager pMemManager;
     private byte[] logicalID;
     private int chunkID = 0;
     private ByteBuffer remainingBuffer;
@@ -65,5 +65,13 @@ public abstract class ChunkReader {
         return size;
     }
 
+    /**
+     * read data from a address mappted to physical ID
+     * @param id
+     * @param data
+     * @return
+     */
     protected abstract int readFromPMem(PMemPhysicalAddress id, ByteBuffer data);
+
+    protected abstract void freeFromPMem(byte[] logicalID);
 }

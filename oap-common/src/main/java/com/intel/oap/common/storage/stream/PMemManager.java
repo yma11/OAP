@@ -5,9 +5,9 @@ import com.intel.oap.common.storage.memkind.MemkindMetaStore;
 import java.util.Properties;
 
 public class PMemManager {
-    private MemoryStats stats;
+    protected MemoryStats stats;
 
-    private PMemMetaStore pMemMetaStore;
+    protected PMemMetaStore pMemMetaStore;
 
     private int chunkSize;
 

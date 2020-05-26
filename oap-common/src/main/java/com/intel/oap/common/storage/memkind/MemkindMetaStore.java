@@ -8,14 +8,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 //TODO design point, how to store data on PMEM
 public class MemkindMetaStore implements PMemMetaStore {
-    ConcurrentHashMap<String, PMemPhysicalAddress> PMemHashMap = new ConcurrentHashMap();
+    ConcurrentHashMap<String, PMemPhysicalAddress> pMemHashMap = new ConcurrentHashMap();
     ConcurrentHashMap<String, MetaData> metaHashMap = new ConcurrentHashMap();
 
     @Override
     public PMemPhysicalAddress getPhysicalAddressByID(byte[] id, int chunkID) {
         StringBuilder keyBuilder = new StringBuilder();
         keyBuilder.append(chunkID).append(new String(id));
-        return PMemHashMap.get(keyBuilder.toString());
+        return pMemHashMap.get(keyBuilder.toString());
     }
 
     @Override
@@ -27,7 +27,11 @@ public class MemkindMetaStore implements PMemMetaStore {
     public void putPhysicalAddress(byte[] id, int chunkID, PMemPhysicalAddress pMemPhysicalAddress) {
         StringBuilder keyBuilder = new StringBuilder();
         keyBuilder.append(chunkID).append(new String(id));
-        PMemHashMap.put(keyBuilder.toString(), pMemPhysicalAddress);
+        pMemHashMap.put(keyBuilder.toString(), pMemPhysicalAddress);
+    }
+
+    public void removePMemBlock(String pMemID) {
+        pMemHashMap.remove(pMemID);
     }
 
     @Override
