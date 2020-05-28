@@ -30,8 +30,11 @@ public class MemkindMetaStore implements PMemMetaStore {
         pMemHashMap.put(keyBuilder.toString(), pMemPhysicalAddress);
     }
 
-    public void removePMemBlock(String pMemID) {
-        pMemHashMap.remove(pMemID);
+    @Override
+    public void removePhysicalAddress(byte[] id, int chunkID, PMemPhysicalAddress pMemPhysicalAddress) {
+        StringBuilder keyBuilder = new StringBuilder();
+        keyBuilder.append(chunkID).append(new String(id));
+        pMemHashMap.remove(keyBuilder.toString());
     }
 
     @Override
