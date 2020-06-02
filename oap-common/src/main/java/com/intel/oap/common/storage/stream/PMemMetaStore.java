@@ -6,6 +6,8 @@ public interface PMemMetaStore {
 
      void putMetaFooter(byte[] id, MetaData metaData);
 
+     void removeMetaFooter(byte[] id);
+
      void putPhysicalAddress(byte[] id, int chunkID, PMemPhysicalAddress pMemPhysicalAddress);
 
      void removePhysicalAddress(byte[] id, int chunkID, PMemPhysicalAddress pMemPhysicalAddress);

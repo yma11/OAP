@@ -6,7 +6,7 @@ import java.nio.ByteBuffer;
 
 public abstract class ChunkReader {
     protected PMemManager pMemManager;
-    private byte[] logicalID;
+    protected byte[] logicalID;
     private int chunkID = 0;
     private ByteBuffer remainingBuffer;
     private MetaData metaData;
@@ -28,7 +28,8 @@ public abstract class ChunkReader {
             b[i] = remainingBuffer.get();
             i++;
             remainingSize--;
-            if (remainingSize == 0) {
+            // when current chunk finished read but byte array is not full-filled, switch to next chunk
+            if (remainingSize == 0 && i < b.length) {
                 remainingBuffer.clear();
                 remainingSize = loadData();
                 remainingBuffer.flip();
@@ -73,5 +74,5 @@ public abstract class ChunkReader {
      */
     protected abstract int readFromPMem(PMemPhysicalAddress id, ByteBuffer data);
 
-    protected abstract void freeFromPMem(byte[] logicalID);
+    protected abstract void freeFromPMem();
 }
