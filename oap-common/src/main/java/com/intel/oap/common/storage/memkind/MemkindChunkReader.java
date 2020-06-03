@@ -1,6 +1,10 @@
 package com.intel.oap.common.storage.memkind;
 
-import com.intel.oap.common.storage.stream.*;
+import com.intel.oap.common.storage.stream.ChunkReader;
+import com.intel.oap.common.storage.stream.MetaData;
+import com.intel.oap.common.storage.stream.PMemManager;
+import com.intel.oap.common.storage.stream.PMemMetaStore;
+import com.intel.oap.common.storage.stream.PMemPhysicalAddress;
 import com.intel.oap.common.unsafe.PersistentMemoryPlatform;
 import com.intel.oap.common.util.MemCopyUtil;
 import org.slf4j.Logger;
@@ -31,6 +35,7 @@ public class MemkindChunkReader extends ChunkReader {
 
     @Override
     protected void freeFromPMem() {
+        // TODO: may need refactor based on up-level usage
         // get metaFooter for this logicalID
         MetaData metaData = pMemMetaStore.getMetaFooter(logicalID);
         int currentTrunkID = 0;

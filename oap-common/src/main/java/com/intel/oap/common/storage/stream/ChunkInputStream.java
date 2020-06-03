@@ -19,6 +19,7 @@ public class ChunkInputStream extends FileInputStream {
     }
 
     public int read(byte b[]) throws IOException {
+        assert(b.length > 0);
         return chunkReader.read(b);
     }
 
