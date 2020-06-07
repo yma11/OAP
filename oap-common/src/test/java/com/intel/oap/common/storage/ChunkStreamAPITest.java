@@ -2,20 +2,21 @@ package com.intel.oap.common.storage;
 
 import com.intel.oap.common.storage.stream.*;
 import com.intel.oap.common.unsafe.PersistentMemoryPlatform;
-import org.junit.Assert;
+import com.intel.oap.common.util.NativeLibraryLoader;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Array;
-import java.rmi.server.ExportException;
 import java.util.Arrays;
 import java.util.Properties;
+
+import static org.junit.Assume.assumeTrue;
 
 public class ChunkStreamAPITest {
 
     DataStore dataStore;
+    boolean libAvailable = true;
 
     @Before
     public void prepare() {
@@ -25,8 +26,20 @@ public class ChunkStreamAPITest {
         }
     }
 
-    private Boolean testChunkStream(String totalSize, String chunkSize, byte[] data,
-                                             int expectedTotalChunk, boolean expectedHasDiskData) throws IOException {
+    private boolean loadPmemLib() {
+        String LIBNAME = "pmplatform";
+        try {
+            NativeLibraryLoader.load(LIBNAME);
+        } catch (UnsatisfiedLinkError | RuntimeException e) {
+            System.out.println("pmplatform lib failed to load, PMem Stream Test will be skipped.");
+            libAvailable = false;
+        }
+        return libAvailable;
+    }
+
+    private Boolean testChunkStream(String totalSize, String chunkSize,
+                                    byte[] data, int expectedTotalChunk,
+                                    boolean expectedHasDiskData) throws IOException {
         Properties p = new Properties();
         p.setProperty("totalSize", totalSize);
         p.setProperty("chunkSize", chunkSize);
@@ -72,42 +85,49 @@ public class ChunkStreamAPITest {
 
     @Test
     public void testFileStreamReadWrite() throws IOException {
+        assumeTrue(loadPmemLib());
         byte[] data = new byte[]{'a', 'b', 'c'};
         assert(testChunkStream("0", "1024", data, 0, true));
     }
 
     @Test
     public void testPMemStreamSingleChunk() throws IOException {
+        assumeTrue(loadPmemLib());
         byte[] data = new byte[]{'a', 'b', 'c'};
         assert(testChunkStream("1024", "6", data, 1, false));
     }
 
     @Test
     public void testPMemStreamSingleChunkNearBoundary() throws IOException {
+        assumeTrue(loadPmemLib());
         byte[] data = new byte[]{'a', 'b', 'c', 'd', 'e', 'f'};
         assert(testChunkStream("1024", "6", data, 1, false));
     }
 
     @Test
     public void testPMemStreamMultiChunks() throws IOException {
+        assumeTrue(loadPmemLib());
         byte[] data = new byte[]{'a', 'b', 'c', 'd', 'e', 'f', 'g'};
         assert(testChunkStream("1024", "6", data, 2, false));
     }
 
     @Test
     public void testPMemStreamMultiChunksNearBoundary() throws IOException {
+        assumeTrue(loadPmemLib());
         byte[] data = new byte[]{'a', 'b', 'c', 'd', 'e', 'f'};
         assert(testChunkStream("1024", "3", data, 2, false));
     }
 
     @Test
     public void testPMemStreamSingleChunkWithFileTriggered() throws IOException {
+        assumeTrue(loadPmemLib());
         byte[] data = new byte[]{'a', 'b', 'c', 'd', 'e', 'f'};
         assert(testChunkStream("4", "3", data, 1, true));
     }
 
     @Test
     public void testPMemStreamMultiChunksWithFileTriggered() throws IOException {
+        assumeTrue(loadPmemLib());
         byte[] data = new byte[]{'a', 'b', 'c', 'd', 'e', 'f'};
         assert(testChunkStream("4", "2", data, 2, true));
     }
