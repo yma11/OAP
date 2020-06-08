@@ -5,6 +5,8 @@ import com.intel.oap.common.unsafe.PersistentMemoryPlatform;
 import com.intel.oap.common.util.NativeLibraryLoader;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,6 +16,7 @@ import java.util.Properties;
 import static org.junit.Assume.assumeTrue;
 
 public class ChunkStreamAPITest {
+    private static final Logger logger = LoggerFactory.getLogger(ChunkStreamAPITest.class);
 
     DataStore dataStore;
     boolean libAvailable = true;
@@ -31,7 +34,7 @@ public class ChunkStreamAPITest {
         try {
             NativeLibraryLoader.load(LIBNAME);
         } catch (UnsatisfiedLinkError | RuntimeException e) {
-            System.out.println("pmplatform lib failed to load, PMem Stream Test will be skipped.");
+            logger.warn("pmplatform lib failed to load, PMem Stream Test will be skipped.");
             libAvailable = false;
         }
         return libAvailable;

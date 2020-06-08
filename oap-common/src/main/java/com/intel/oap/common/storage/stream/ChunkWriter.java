@@ -36,7 +36,6 @@ public abstract class ChunkWriter {
                 // clear content of remainingBuffer
                 remainingBuffer.clear();
             }
-            // System.out.println("remainingbuffer" + remainingBuffer.capacity());
             remainingBuffer.put(bytes[i]);
             i++;
             j++;
@@ -52,13 +51,11 @@ public abstract class ChunkWriter {
         int dataSizeInByte = byteBuffer.position();
         if (!fallbackTriggered && pMemManager.getStats().getRemainingSize() >= dataSizeInByte) {
             try {
-                // System.out.println("writing to pmem" );
                 PMemPhysicalAddress id = writeInternal(byteBuffer);
                 pMemManager.getStats().increaseSize(dataSizeInByte);
                 pMemManager.getpMemMetaStore().putPhysicalAddress(logicalID, chunkID, id);
                 chunkID++;
             } catch (RuntimeException re) {
-                // System.out.println("remaining" + pMemManager.getStats().getRemainingSize() );
                 // TODO Log Warning
                 fallbackTriggered = true;
                 flushToDisk(byteBuffer);
