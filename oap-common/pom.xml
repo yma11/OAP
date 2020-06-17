@@ -25,6 +25,11 @@
     <artifactId>oap-common</artifactId>
     <packaging>jar</packaging>
 
+    <properties>
+        <jmh.version>1.21</jmh.version>
+        <uberjar.name>benchmarks</uberjar.name>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.openjdk.jmh</groupId>
