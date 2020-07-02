@@ -16,7 +16,6 @@ public class PMemBlkChunkReader extends ChunkReader {
         this.chunkSize = pMemManager.getChunkSize();
     }
 
-    @Override
     protected int readFromPMem(PMemPhysicalAddress pMemPhysicalAddress, ByteBuffer data) {
         PMemBlkPhysicalAddress pMemBlkPhysicalAddress = (PMemBlkPhysicalAddress) pMemPhysicalAddress;
         int index = pMemBlkPhysicalAddress.getIndex();
@@ -29,5 +28,15 @@ public class PMemBlkChunkReader extends ChunkReader {
     @Override
     protected void freeFromPMem() {
         
+    }
+
+    @Override
+    protected int getOffsetOfChunk(PMemPhysicalAddress pMemPhysicalAddress) {
+        return  ((PMemBlkPhysicalAddress) pMemPhysicalAddress).getLength();
+    }
+
+    @Override
+    protected byte[] readFromPMem(PMemPhysicalAddress pMemPhysicalAddress, int offsetInChunk, int remainingRequest){
+        return null;
     }
 }

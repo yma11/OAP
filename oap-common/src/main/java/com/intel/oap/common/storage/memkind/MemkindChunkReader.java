@@ -1,18 +1,18 @@
 package com.intel.oap.common.storage.memkind;
 
 import com.intel.oap.common.storage.stream.ChunkReader;
-import com.intel.oap.common.storage.stream.MetaData;
 import com.intel.oap.common.storage.stream.PMemManager;
 import com.intel.oap.common.storage.stream.PMemMetaStore;
 import com.intel.oap.common.storage.stream.PMemPhysicalAddress;
 import com.intel.oap.common.unsafe.PersistentMemoryPlatform;
 import com.intel.oap.common.util.MemCopyUtil;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import sun.misc.Unsafe;
 
 import java.io.File;
-import java.nio.ByteBuffer;
 
 public class MemkindChunkReader extends ChunkReader {
     private static final Logger logger = LoggerFactory.getLogger(MemkindChunkReader.class);
@@ -20,24 +20,32 @@ public class MemkindChunkReader extends ChunkReader {
     public MemkindChunkReader(byte[] logicalID, PMemManager pMemManager) {
         super(logicalID, pMemManager);
         this.pMemMetaStore = pMemManager.getpMemMetaStore();
+        this.metaData = pMemMetaStore.getMetaFooter(logicalID);
+    }
+
+    // read from specific chunk at starting point offsetInChunk
+    @Override
+    protected byte[] readFromPMem(PMemPhysicalAddress pMemPhysicalAddress, int offsetInChunk, int remainingRequest) {
+        MemkindPMemPhysicalAddress memkindPMemPhysicalAddress = (MemkindPMemPhysicalAddress) pMemPhysicalAddress;
+        long baseAddress = memkindPMemPhysicalAddress.getBaseAddress();
+        int length = memkindPMemPhysicalAddress.getOffset() - offsetInChunk;
+        if(length <= 0) {
+            return null;
+        }
+        int readBytes = Math.min(length, remainingRequest);
+        byte[] buffer = new byte[readBytes];
+        MemCopyUtil.copyMemory(null, baseAddress, buffer, Unsafe.ARRAY_BYTE_BASE_OFFSET + offsetInChunk, readBytes);
+        return buffer;
     }
 
     @Override
-    protected int readFromPMem(PMemPhysicalAddress pMemPhysicalAddress, ByteBuffer data) {
-        MemkindPMemPhysicalAddress memkindPMemPhysicalAddress = (MemkindPMemPhysicalAddress) pMemPhysicalAddress;
-        long baseAddress = memkindPMemPhysicalAddress.getBaseAddress();
-        int length = memkindPMemPhysicalAddress.getOffset();
-        byte[] buffer = new byte[length];
-        MemCopyUtil.copyMemory(null, baseAddress, buffer, Unsafe.ARRAY_BYTE_BASE_OFFSET, length);
-        data.put(buffer);
-        return length;
+    protected int getOffsetOfChunk(PMemPhysicalAddress pMemPhysicalAddress) {
+        return  ((MemkindPMemPhysicalAddress) pMemPhysicalAddress).getOffset();
     }
 
     @Override
     protected void freeFromPMem() {
         // TODO: may need refactor based on up-level usage
-        // get metaFooter for this logicalID
-        MetaData metaData = pMemMetaStore.getMetaFooter(logicalID);
         int currentTrunkID = 0;
         while(currentTrunkID < metaData.getTotalChunk()) {
             PMemPhysicalAddress pMemPhysicalAddress = pMemMetaStore.getPhysicalAddressByID(logicalID, currentTrunkID);

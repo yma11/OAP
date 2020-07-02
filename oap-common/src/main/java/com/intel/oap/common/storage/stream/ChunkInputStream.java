@@ -3,8 +3,6 @@ package com.intel.oap.common.storage.stream;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.channels.FileChannel;
 
 public class ChunkInputStream extends FileInputStream {
    protected ChunkReader chunkReader;
@@ -14,8 +12,18 @@ public class ChunkInputStream extends FileInputStream {
         this.chunkReader = dataStore.getChunkReader(name.getBytes());
     }
 
+    /**
+     * Reads the next byte of data from the input stream. The value byte is
+     * returned as an <code>int</code> in the range <code>0</code> to
+     * <code>255</code>. If no byte is available because the end of the stream
+     * has been reached, the value <code>-1</code> is returned. This method
+     * blocks until input data is available, the end of the stream is detected,
+     * or an exception is thrown.
+     * @return
+     * @throws IOException
+     */
     public int read() throws IOException {
-        throw new UnsupportedOperationException("Unsupported operation");
+        return chunkReader.read();
     }
 
     public int read(byte b[]) throws IOException {
@@ -28,7 +36,7 @@ public class ChunkInputStream extends FileInputStream {
     }
 
     public long skip(long n) throws IOException {
-        throw new UnsupportedOperationException("Unsupported operation");
+        return chunkReader.skip(n);
     }
 
     public int available() throws IOException {
