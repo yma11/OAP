@@ -32,7 +32,7 @@ public class ChunkInputStream extends FileInputStream {
     }
 
     public int read(byte b[], int off, int len) throws IOException {
-        throw new UnsupportedOperationException("Unsupported operation");
+        return chunkReader.read(b, off, len);
     }
 
     public long skip(long n) throws IOException {

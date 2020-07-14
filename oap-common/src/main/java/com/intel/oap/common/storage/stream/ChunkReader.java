@@ -55,12 +55,13 @@ public abstract class ChunkReader {
             }
             // PMem chunks are all read and no disk file
             if( metaData.isHasDiskData() == false ) {
-                return size;
+                return size == 0? -1: size;
             }
             // read from disk file
             if(fileChannel == null) {
                 fileChannel = FileChannel.open(
                         new File(new String(logicalID)).toPath(), StandardOpenOption.READ);
+                System.out.println("Read data from real file.");
             }
             long startPosition = fileChannel.position();
             if(startPosition < fileChannel.size()) {
@@ -78,7 +79,8 @@ public abstract class ChunkReader {
                     return size;
             }
             // Stream is already finished read
-            return -1;
+            else
+                return -1;
         }
         return size;
     }
