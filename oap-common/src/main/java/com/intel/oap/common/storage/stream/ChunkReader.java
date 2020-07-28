@@ -43,9 +43,10 @@ public abstract class ChunkReader {
                 int originChunkOffset = getOffsetOfChunk(id);
                 // update position(chunkID, offsetInChunk)
                 int readedDataSize = data.length;
-                if(offsetInChunk + readedDataSize < originChunkOffset)
+                int offset = offsetInChunk + readedDataSize;
+                if(offset < originChunkOffset)
                     offsetInChunk += readedDataSize;
-                if(offsetInChunk + readedDataSize == originChunkOffset) {
+                if(offset == originChunkOffset) {
                     offsetInChunk = 0;
                     chunkID++;
                 }

@@ -34,7 +34,7 @@ public class MemkindChunkReader extends ChunkReader {
         }
         int readBytes = Math.min(length, remainingRequest);
         byte[] buffer = new byte[readBytes];
-        MemCopyUtil.copyMemory(null, baseAddress, buffer, Unsafe.ARRAY_BYTE_BASE_OFFSET + offsetInChunk, readBytes);
+        MemCopyUtil.copyMemory(null, baseAddress + offsetInChunk, buffer, Unsafe.ARRAY_BYTE_BASE_OFFSET, readBytes);
         return buffer;
     }
 
@@ -46,20 +46,24 @@ public class MemkindChunkReader extends ChunkReader {
     @Override
     protected void freeFromPMem() {
         // TODO: may need refactor based on up-level usage
-        int currentTrunkID = 0;
-        while(currentTrunkID < metaData.getTotalChunk()) {
-            PMemPhysicalAddress pMemPhysicalAddress = pMemMetaStore.getPhysicalAddressByID(logicalID, currentTrunkID);
-            PersistentMemoryPlatform.freeMemory(((MemkindPMemPhysicalAddress) pMemPhysicalAddress).getBaseAddress());
-            pMemMetaStore.removePhysicalAddress(logicalID, currentTrunkID);
-            currentTrunkID++;
-        }
-        // delete file
-        File file = new File(new String(logicalID));
-        if (file != null && file.exists()) {
-            if (!file.delete()) {
-                logger.error("Was unable to delete file {}", file.getAbsolutePath());
+        if(metaData != null) {
+            int currentTrunkID = 0;
+            while(currentTrunkID < metaData.getTotalChunk()) {
+                MemkindPMemPhysicalAddress pMemPhysicalAddress = (MemkindPMemPhysicalAddress) pMemMetaStore.getPhysicalAddressByID(logicalID, currentTrunkID);
+                PersistentMemoryPlatform.freeMemory(pMemPhysicalAddress.getBaseAddress());
+                pMemManager.getStats().decreaseSize(pMemPhysicalAddress.getOffset());
+                pMemMetaStore.removePhysicalAddress(logicalID, currentTrunkID);
+                currentTrunkID++;
             }
+            // delete file
+            File file = new File(new String(logicalID));
+            if (file != null && file.exists()) {
+                if (!file.delete()) {
+                    logger.error("Was unable to delete file {}", file.getAbsolutePath());
+                }
+            }
+            pMemMetaStore.removeMetaFooter(logicalID);
+            metaData = null;
         }
-        pMemMetaStore.removeMetaFooter(logicalID);
     }
 }
