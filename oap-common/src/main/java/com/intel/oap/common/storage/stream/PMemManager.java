@@ -39,11 +39,11 @@ public class PMemManager {
     }
 
     private PMemManager(){
-        // temporary setting used for spark integration
+        // for test
         Properties p = new Properties();
-        p.setProperty("totalSize", "4010");
-        p.setProperty("chunkSize", "200");
-        PersistentMemoryPlatform.initialize("/tmp/", 400L * 1024 * 1024 * 1024, 0);
+        p.setProperty("totalSize", String.valueOf(1024L * 1024 * 5 * 1024));
+        p.setProperty("chunkSize", String.valueOf(27286092));
+        PersistentMemoryPlatform.initialize("/mnt/tmp0", 1024L * 1024 * 6 * 1024 , 0);
         chunkSize = Integer.valueOf(p.getProperty("chunkSize"));
         long totalSize = Long.valueOf(p.getProperty("totalSize"));
         stats = new MemoryStats(totalSize);
@@ -55,6 +55,10 @@ public class PMemManager {
         chunkSize = Integer.valueOf(properties.getProperty("chunkSize"));
         long totalSize = Long.valueOf(properties.getProperty("totalSize"));
         String metaStore = properties.getProperty("metaStore");
+        String initialPath = properties.getProperty("initialPath");
+        long initialSize = Long.valueOf(properties.getProperty("initialSize"));
+        System.out.println(chunkSize + " " + totalSize + " " + metaStore + " " + initialPath);
+        PersistentMemoryPlatform.initialize(initialPath, initialSize , 0);
         stats = new MemoryStats(totalSize);
 
         switch (metaStore) {

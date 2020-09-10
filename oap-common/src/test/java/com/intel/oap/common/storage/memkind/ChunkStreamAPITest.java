@@ -48,7 +48,9 @@ public class ChunkStreamAPITest {
         p.setProperty("totalSize", totalSize);
         p.setProperty("chunkSize", chunkSize);
         p.setProperty("metaStore", "memkind");
-        p.setProperty("storetype", "memkind");
+        p.setProperty("dataStore", "memkind");
+        p.setProperty("initialPath", "target/tmp/");
+        p.setProperty("initialSize", "16777216");
         return  p;
     }
 
@@ -207,6 +209,10 @@ public class ChunkStreamAPITest {
         assert(metaData.getTotalChunk() == 2);
         assert(metaData.isHasDiskData() == false);
         assert(readData.length == 5);
+        File file = new File(fileName);
+        if (file != null && file.exists()) {
+            assert(file.delete());
+        }
     }
     @Test
     public void testPMemStreamReadWithSkip() throws IOException {
@@ -214,7 +220,7 @@ public class ChunkStreamAPITest {
         Properties p = getProperties("8", "4");
         PMemManager pMemManager = new PMemManager(p);
         dataStore = new DataStore(pMemManager, p);
-        String fileName = "/tmp/test_skip_read.file";
+        String fileName = "/tmp/test_skip.file";
         byte[] data = new byte[]{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'};
         ChunkOutputStream chunkoutputStream = ChunkOutputStream.getChunkOutputStreamInstance(fileName, dataStore);
         chunkoutputStream.write(data);
@@ -230,5 +236,54 @@ public class ChunkStreamAPITest {
         byte[] finalData = new byte[1];
         chunkInputStream.read(finalData);
         assert(Arrays.equals(finalData, new byte[]{'j'}));
+        File file = new File(fileName);
+        if (file != null && file.exists()) {
+            assert(file.delete());
+        }
+    }
+    @Test
+    public void testPMemStreamFree() throws IOException {
+        assumeTrue(loadPmemLib());
+        Properties p = getProperties("8", "4");
+        PMemManager pMemManager = new PMemManager(p);
+        dataStore = new DataStore(pMemManager, p);
+        String fileName = "/tmp/test_skip_read.file";
+        byte[] data = new byte[]{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'};
+        ChunkOutputStream chunkoutputStream = ChunkOutputStream.getChunkOutputStreamInstance(fileName, dataStore);
+        chunkoutputStream.write(data);
+        chunkoutputStream.close();
+        byte[] readData = new byte[10];
+        ChunkInputStream chunkInputStream = ChunkInputStream.getChunkInputStreamInstance(fileName, dataStore);
+        chunkInputStream.read(readData);
+        ChunkInputStream cis = ChunkInputStream.getChunkInputStreamInstance(fileName, dataStore);
+        cis.free();
+        File file = new File(fileName);
+        if (file != null && file.exists()) {
+            assert(file.delete());
+        }
+    }
+    @Test
+    public void testPMemStreamBytesNotFullyWrite() throws IOException {
+        assumeTrue(loadPmemLib());
+        Properties p = getProperties("12", "6");
+        PMemManager pMemManager = new PMemManager(p);
+        dataStore = new DataStore(pMemManager, p);
+        String fileName = "/tmp/test_not_fully.file";
+        byte[] data = new byte[]{'a', 'b', 'c', 'd', 'e', 'f'};
+        ChunkOutputStream chunkoutputStream = ChunkOutputStream.getChunkOutputStreamInstance(fileName, dataStore);
+        chunkoutputStream.write(data, 0, 5);
+        chunkoutputStream.write(data, 0, 2);
+        chunkoutputStream.write(data, 0, 4);
+        chunkoutputStream.close();
+        byte[] readData = new byte[11];
+        ChunkInputStream chunkInputStream = ChunkInputStream.getChunkInputStreamInstance(fileName, dataStore);
+        chunkInputStream.read(readData);
+        ChunkInputStream cis = ChunkInputStream.getChunkInputStreamInstance(fileName, dataStore);
+        cis.free();
+        File file = new File(fileName);
+        if (file != null && file.exists()) {
+            assert(file.delete());
+        }
+        assert(Arrays.equals(readData, new byte[]{'a', 'b', 'c', 'd', 'e', 'a', 'b', 'a', 'b', 'c', 'd'}));
     }
 }

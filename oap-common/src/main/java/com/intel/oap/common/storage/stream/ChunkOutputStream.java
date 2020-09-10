@@ -45,7 +45,17 @@ public class ChunkOutputStream extends FileOutputStream {
     }
 
     public void write(byte b[]) throws IOException {
-        chunkWriter.write(b);
+        chunkWriter.write(b, b.length);
+    }
+
+    /**
+     *
+     * @param b bytes will be wrote to stream
+     * @param len  data length that will be wrote, from begining
+     * @throws IOException
+     */
+    public void write(byte b[], int len) throws IOException {
+        chunkWriter.write(b, len);
     }
 
     /**
@@ -66,9 +76,7 @@ public class ChunkOutputStream extends FileOutputStream {
         } else if (len == 0) {
             return;
         }
-        for (int i = 0 ; i < len ; i++) {
-            write(b[off + i]);
-        }
+        write(b, len);
     }
 
 

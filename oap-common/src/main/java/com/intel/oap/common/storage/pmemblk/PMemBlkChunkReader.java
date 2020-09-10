@@ -37,6 +37,8 @@ public class PMemBlkChunkReader extends ChunkReader {
 
     @Override
     protected byte[] readFromPMem(PMemPhysicalAddress pMemPhysicalAddress, int offsetInChunk, int remainingRequest){
-        return null;
+        ByteBuffer data = ByteBuffer.wrap(new byte[remainingRequest -offsetInChunk]);
+        readFromPMem(pMemPhysicalAddress, data);
+        return data.array();
     }
 }

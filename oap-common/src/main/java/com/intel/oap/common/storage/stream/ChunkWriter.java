@@ -30,29 +30,43 @@ public abstract class ChunkWriter {
             remainingBuffer.clear();
         }
     }
-    public void write(byte[] bytes) throws IOException {
+
+    public void write(byte[] bytes, int len) throws IOException {
         // FIXME optimize this by avoiding one-by-one add. A new data structure can used like simple array
         if (bytes == null || bytes.length == 0) {
             return;
         }
-        int i = 0, j = remainingBuffer.position();
-        while (i < bytes.length) {
-            if (j == pMemManager.getChunkSize()) {
-                j = 0;
-                // Flush buffer through chunk writer
+        // if remaining buffer is empty and the bytes length is equal to chunkSize, directly flush it
+        // without copying to remaining buffer.
+        if (bytes.length == pMemManager.getChunkSize()) {
+            if (remainingBuffer.position() > 0) {
                 flushBufferByChunk(remainingBuffer);
-                // clear content of remainingBuffer
                 remainingBuffer.clear();
             }
-            remainingBuffer.put(bytes[i]);
-            i++;
-            j++;
+            ByteBuffer wrapBuffer = ByteBuffer.wrap(bytes);
+            wrapBuffer.position(len);
+            flushBufferByChunk(wrapBuffer);
+        } else {
+            int i = 0, j = remainingBuffer.position();
+            while (i < len) {
+                if (j == pMemManager.getChunkSize()) {
+                    j = 0;
+                    // Flush buffer through chunk writer
+                    flushBufferByChunk(remainingBuffer);
+                    // clear content of remainingBuffer
+                    remainingBuffer.clear();
+                }
+                remainingBuffer.put(bytes[i]);
+                i++;
+                j++;
+            }
+            if (j == pMemManager.getChunkSize()) {
+                // Flush buffer through chunk writer
+                flushBufferByChunk(remainingBuffer);
+                remainingBuffer.clear();
+            }
         }
-        if (j == pMemManager.getChunkSize()) {
-            // Flush buffer through chunk writer
-            flushBufferByChunk(remainingBuffer);
-            remainingBuffer.clear();
-        }
+
     }
 
     private void flushBufferByChunk(ByteBuffer byteBuffer) throws IOException {
