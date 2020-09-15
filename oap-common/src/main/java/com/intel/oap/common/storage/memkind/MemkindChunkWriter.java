@@ -6,6 +6,8 @@ import com.intel.oap.common.storage.stream.PMemManager;
 import com.intel.oap.common.storage.stream.PMemPhysicalAddress;
 import com.intel.oap.common.unsafe.PersistentMemoryPlatform;
 import com.intel.oap.common.util.MemCopyUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import sun.misc.Unsafe;
 
 import java.io.File;
@@ -17,7 +19,7 @@ public class MemkindChunkWriter extends ChunkWriter {
     public MemkindChunkWriter(byte[] logicalID, PMemManager pMemManager) {
         super(logicalID, pMemManager);
     }
-
+    private static final Logger logger = LoggerFactory.getLogger(MemkindChunkWriter.class);
     @Override
     protected PMemPhysicalAddress writeInternal(ByteBuffer byteBuffer) {
         int dataSizeInByte = byteBuffer.position();
@@ -52,6 +54,10 @@ public class MemkindChunkWriter extends ChunkWriter {
             throw new IllegalArgumentException("Negative size");
         }
         long discardedSize = position() + remainingBuffer.position() - truncatePosition;
+        if(discardedSize <= 0) {
+            logger.info("truncate position is beyond data size, won't discard any bytes in PMem/File");
+            return;
+        }
         int currentRemainingBufferPosition = remainingBuffer.position();
         // if only need to discard bytes in remainingBuffer
         if (discardedSize <= currentRemainingBufferPosition) {

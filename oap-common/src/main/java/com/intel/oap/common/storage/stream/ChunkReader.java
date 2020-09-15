@@ -1,5 +1,8 @@
 package com.intel.oap.common.storage.stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
@@ -8,6 +11,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.StandardOpenOption;
 
 public abstract class ChunkReader {
+    private static final Logger logger = LoggerFactory.getLogger(ChunkReader.class);
     protected PMemManager pMemManager;
     protected byte[] logicalID;
     // current position determined by chunkID and offsetInChunk
@@ -27,7 +31,7 @@ public abstract class ChunkReader {
 
     /**
      * load <chunkSize> bytes from current position
-     * @return data size
+     * @return data size read from PMem + Disk
      * @throws IOException
      */
     private int loadData() throws IOException {
@@ -44,9 +48,9 @@ public abstract class ChunkReader {
                 // update position(chunkID, offsetInChunk)
                 int readedDataSize = data.length;
                 int offset = offsetInChunk + readedDataSize;
-                if(offset < originChunkOffset)
+                if(offset < originChunkOffset) {
                     offsetInChunk += readedDataSize;
-                if(offset == originChunkOffset) {
+                } else {
                     offsetInChunk = 0;
                     chunkID++;
                 }
@@ -55,14 +59,14 @@ public abstract class ChunkReader {
                     return size;
             }
             // PMem chunks are all read and no disk file
-            if( metaData.isHasDiskData() == false ) {
+            if(!metaData.isHasDiskData()) {
                 return size == 0? -1: size;
             }
             // read from disk file
             if(fileChannel == null) {
                 fileChannel = FileChannel.open(
                         new File(new String(logicalID)).toPath(), StandardOpenOption.READ);
-                System.out.println("Read data from real file.");
+                logger.debug("Read data from real file.");
             }
             long startPosition = fileChannel.position();
             if(startPosition < fileChannel.size()) {
@@ -80,8 +84,9 @@ public abstract class ChunkReader {
                     return size;
             }
             // Stream is already finished read
-            else
+            else {
                 return -1;
+            }
         }
         return size;
     }
