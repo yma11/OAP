@@ -1,0 +1,279 @@
+diff --git a/oap-spark/src/main/java/org/apache/spark/unsafe/map/BytesToBytesMap.java b/oap-spark/src/main/java/org/apache/spark/unsafe/map/BytesToBytesMap.java
+index d4cc153e83..26812c62c0 100644
+--- a/oap-spark/src/main/java/org/apache/spark/unsafe/map/BytesToBytesMap.java
++++ b/oap-spark/src/main/java/org/apache/spark/unsafe/map/BytesToBytesMap.java
+@@ -29,6 +29,7 @@ import com.intel.oap.common.storage.stream.ChunkInputStream;
+ import com.intel.oap.common.storage.stream.DataStore;
+ import org.apache.spark.internal.config.package$;
+ import org.apache.spark.memory.PMemManagerInitializer;
++import org.apache.spark.TaskContext;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
+@@ -76,6 +77,8 @@ public final class BytesToBytesMap extends MemoryConsumer {
+ 
+   private final TaskMemoryManager taskMemoryManager;
+ 
++  private final TaskContext taskContext;
++
+   /**
+    * A linked list for tracking all allocated data pages so that we can free all of our memory.
+    */
+@@ -177,6 +180,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
+ 
+   public BytesToBytesMap(
+       TaskMemoryManager taskMemoryManager,
++      TaskContext taskContext,
+       BlockManager blockManager,
+       SerializerManager serializerManager,
+       int initialCapacity,
+@@ -184,6 +188,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
+       long pageSizeBytes) {
+     super(taskMemoryManager, pageSizeBytes, taskMemoryManager.getTungstenMemoryMode());
+     this.taskMemoryManager = taskMemoryManager;
++    this.taskContext = taskContext;
+     this.blockManager = blockManager;
+     this.serializerManager = serializerManager;
+     this.loadFactor = loadFactor;
+@@ -206,10 +211,12 @@ public final class BytesToBytesMap extends MemoryConsumer {
+ 
+   public BytesToBytesMap(
+       TaskMemoryManager taskMemoryManager,
++      TaskContext taskContext,
+       int initialCapacity,
+       long pageSizeBytes) {
+     this(
+       taskMemoryManager,
++      taskContext != null? taskContext : TaskContext.get(),
+       SparkEnv.get() != null ? SparkEnv.get().blockManager() :  null,
+       SparkEnv.get() != null ? SparkEnv.get().serializerManager() :  null,
+       initialCapacity,
+@@ -286,7 +293,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
+             }
+             try {
+               Closeables.close(reader, /* swallowIOException = */ false);
+-              reader = spillWriters.getFirst().getReader(serializerManager);
++              reader = spillWriters.getFirst().getReader(serializerManager, taskContext.taskMetrics());
+               recordsInPage = -1;
+             } catch (IOException e) {
+               // Scala iterator does not handle exception
+@@ -355,6 +362,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
+       // TODO: use existing ShuffleWriteMetrics
+       ShuffleWriteMetrics writeMetrics = new ShuffleWriteMetrics();
+ 
++      long startTime = System.nanoTime();
+       long released = 0L;
+       while (dataPages.size() > 0) {
+         MemoryBlock block = dataPages.getLast();
+@@ -387,6 +395,8 @@ public final class BytesToBytesMap extends MemoryConsumer {
+           break;
+         }
+       }
++      long duration = System.nanoTime() - startTime;
++      taskContext.taskMetrics().incShuffleSpillWriteTime(duration);
+ 
+       return released;
+     }
+@@ -397,6 +407,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
+     }
+ 
+     private void handleFailedDelete() {
++      long startTime = System.nanoTime();
+       // remove the spill file from disk or pmem
+       boolean pMemSpillEnabled = SparkEnv.get() != null && (boolean) SparkEnv.get().conf().get(
+               package$.MODULE$.MEMORY_SPILL_PMEM_ENABLED());
+@@ -415,6 +426,9 @@ public final class BytesToBytesMap extends MemoryConsumer {
+           logger.error("Was unable to delete spill file {}", file.getAbsolutePath());
+         }
+       }
++      long duration = System.nanoTime() - startTime;
++      if(file != null)
++        taskContext.taskMetrics().incShuffleSpillDeleteTime(duration);
+     }
+   }
+ 
+@@ -834,8 +848,12 @@ public final class BytesToBytesMap extends MemoryConsumer {
+       freePage(dataPage);
+     }
+     assert(dataPages.isEmpty());
+-
++    long startTime = System.nanoTime();
++    boolean incSpillDelTime = !spillWriters.isEmpty();
+     deleteSpillFiles();
++    long duration = System.nanoTime() - startTime;
++    if (incSpillDelTime)
++      taskContext.taskMetrics().incShuffleSpillDeleteTime(duration);
+   }
+ 
+   /**
+diff --git a/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeExternalSorter.java b/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeExternalSorter.java
+index 6b587ac09d..e9995313e0 100644
+--- a/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeExternalSorter.java
++++ b/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeExternalSorter.java
+@@ -221,6 +221,7 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
+ 
+     ShuffleWriteMetrics writeMetrics = new ShuffleWriteMetrics();
+ 
++    long startTime = System.nanoTime();
+     final UnsafeSorterSpillWriter spillWriter =
+       new UnsafeSorterSpillWriter(blockManager, fileBufferSizeBytes, writeMetrics,
+         inMemSorter.numRecords());
+@@ -236,6 +237,8 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
+     // records. Otherwise, if the task is over allocated memory, then without freeing the memory
+     // pages, we might not be able to get memory for the pointer array.
+ 
++    long duration = System.nanoTime() - startTime;
++    taskContext.taskMetrics().incShuffleSpillWriteTime(duration);
+     taskContext.taskMetrics().incMemoryBytesSpilled(spillSize);
+     taskContext.taskMetrics().incDiskBytesSpilled(writeMetrics.bytesWritten());
+     totalSpillBytes += spillSize;
+@@ -314,12 +317,17 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
+    * Deletes any spill files created by this sorter.
+    */
+   private void deleteSpillFiles() {
++    long startTime = System.nanoTime();
++    boolean incSpillDelTime = !spillWriters.isEmpty();
+     boolean pMemSpillEnabled = SparkEnv.get() != null && (boolean) SparkEnv.get().conf().get(
+             package$.MODULE$.MEMORY_SPILL_PMEM_ENABLED());
+     if (pMemSpillEnabled == true)
+       deletePMemSpillFiles();
+     else
+       deleteDiskSpillFiles();
++    long duration = System.nanoTime() - startTime;
++    if(incSpillDelTime)
++      taskContext.taskMetrics().incShuffleSpillDeleteTime(duration);
+   }
+ 
+   private void deleteDiskSpillFiles() {
+@@ -500,7 +508,8 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
+       final UnsafeSorterSpillMerger spillMerger = new UnsafeSorterSpillMerger(
+         recordComparatorSupplier.get(), prefixComparator, spillWriters.size());
+       for (UnsafeSorterSpillWriter spillWriter : spillWriters) {
+-        spillMerger.addSpillIfNotEmpty(spillWriter.getReader(serializerManager));
++        spillMerger.addSpillIfNotEmpty(spillWriter.getReader(serializerManager,
++                taskContext.taskMetrics()));
+       }
+       if (inMemSorter != null) {
+         readingIterator = new SpillableIterator(inMemSorter.getSortedIterator());
+@@ -556,13 +565,14 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
+         UnsafeInMemorySorter.SortedIterator inMemIterator =
+           ((UnsafeInMemorySorter.SortedIterator) upstream).clone();
+ 
+-       ShuffleWriteMetrics writeMetrics = new ShuffleWriteMetrics();
++        long startTime = System.nanoTime();
++        ShuffleWriteMetrics writeMetrics = new ShuffleWriteMetrics();
+         // Iterate over the records that have not been returned and spill them.
+         final UnsafeSorterSpillWriter spillWriter =
+           new UnsafeSorterSpillWriter(blockManager, fileBufferSizeBytes, writeMetrics, numRecords);
+         spillIterator(inMemIterator, spillWriter);
+         spillWriters.add(spillWriter);
+-        nextUpstream = spillWriter.getReader(serializerManager);
++        nextUpstream = spillWriter.getReader(serializerManager, taskContext.taskMetrics());
+ 
+         long released = 0L;
+         synchronized (UnsafeExternalSorter.this) {
+@@ -581,6 +591,8 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
+           allocatedPages.clear();
+         }
+ 
++        long duration = System.nanoTime() - startTime;
++        taskContext.taskMetrics().incShuffleSpillWriteTime(duration);
+         // in-memory sorter will not be used after spilling
+         assert(inMemSorter != null);
+         released += inMemSorter.getMemoryUsage();
+@@ -670,7 +682,7 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
+       int i = 0;
+       for (UnsafeSorterSpillWriter spillWriter : spillWriters) {
+         if (i + spillWriter.recordsSpilled() > startIndex) {
+-          UnsafeSorterIterator iter = spillWriter.getReader(serializerManager);
++          UnsafeSorterIterator iter = spillWriter.getReader(serializerManager, taskContext.taskMetrics());
+           moveOver(iter, startIndex - i);
+           queue.add(iter);
+         }
+diff --git a/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeSorterSpillReader.java b/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeSorterSpillReader.java
+index 32c2d79a78..d7e2a4525a 100644
+--- a/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeSorterSpillReader.java
++++ b/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeSorterSpillReader.java
+@@ -23,6 +23,7 @@ import com.intel.oap.common.storage.stream.ChunkInputStream;
+ import com.intel.oap.common.storage.stream.DataStore;
+ import org.apache.spark.SparkEnv;
+ import org.apache.spark.TaskContext;
++import org.apache.spark.executor.TaskMetrics;
+ import org.apache.spark.internal.config.package$;
+ import org.apache.spark.internal.config.ConfigEntry;
+ import org.apache.spark.io.NioBufferedFileInputStream;
+@@ -53,11 +54,15 @@ public final class UnsafeSorterSpillReader extends UnsafeSorterIterator implemen
+   private byte[] arr = new byte[1024 * 1024];
+   private Object baseObject = arr;
+   private final TaskContext taskContext = TaskContext.get();
++  private final TaskMetrics taskMetrics;
+ 
+   public UnsafeSorterSpillReader(
+       SerializerManager serializerManager,
++      TaskMetrics taskMetrics,
+       File file,
+       BlockId blockId) throws IOException {
++    assert (file.length() > 0);
++    this.taskMetrics = taskMetrics;
+     final ConfigEntry<Object> bufferSizeConfigEntry =
+         package$.MODULE$.UNSAFE_SORTER_SPILL_READER_BUFFER_SIZE();
+     // This value must be less than or equal to MAX_BUFFER_SIZE_BYTES. Cast to int is always safe.
+@@ -83,7 +88,10 @@ public final class UnsafeSorterSpillReader extends UnsafeSorterIterator implemen
+         this.in = serializerManager.wrapStream(blockId, bs);
+       }
+       this.din = new DataInputStream(this.in);
++      long startTime = System.nanoTime();
+       numRecords = numRecordsRemaining = din.readInt();
++      long duration = System.nanoTime() - startTime;
++      this.taskMetrics.incShuffleSpillReadTime(duration);
+     } catch (IOException e) {
+       Closeables.close(bs, /* swallowIOException = */ true);
+       throw e;
+@@ -110,6 +118,7 @@ public final class UnsafeSorterSpillReader extends UnsafeSorterIterator implemen
+     if (taskContext != null) {
+       taskContext.killTaskIfInterrupted();
+     }
++    long startTime = System.nanoTime();
+     recordLength = din.readInt();
+     keyPrefix = din.readLong();
+     if (recordLength > arr.length) {
+@@ -121,6 +130,8 @@ public final class UnsafeSorterSpillReader extends UnsafeSorterIterator implemen
+     if (numRecordsRemaining == 0) {
+       close();
+     }
++    long duration = System.nanoTime() - startTime;
++    taskMetrics.incShuffleSpillReadTime(duration);
+   }
+ 
+   @Override
+diff --git a/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeSorterSpillWriter.java b/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeSorterSpillWriter.java
+index cc9ee49859..bd75f275f5 100644
+--- a/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeSorterSpillWriter.java
++++ b/oap-spark/src/main/java/org/apache/spark/util/collection/unsafe/sort/UnsafeSorterSpillWriter.java
+@@ -20,6 +20,7 @@ package org.apache.spark.util.collection.unsafe.sort;
+ import java.io.File;
+ import java.io.IOException;
+ 
++import org.apache.spark.executor.TaskMetrics;
+ import scala.Tuple2;
+ 
+ import org.apache.spark.SparkConf;
+@@ -77,7 +78,6 @@ public final class UnsafeSorterSpillWriter {
+     // around this, we pass a dummy no-op serializer.
+     boolean pMemSpillEnabled = SparkEnv.get() != null && (boolean) SparkEnv.get().conf().get(
+             package$.MODULE$.MEMORY_SPILL_PMEM_ENABLED());
+-
+     writer = pMemSpillEnabled == true ? blockManager.getPMemWriter(
+             blockId, file, DummySerializerInstance.INSTANCE, fileBufferSize, writeMetrics)
+             : blockManager.getDiskWriter(
+@@ -161,8 +161,8 @@ public final class UnsafeSorterSpillWriter {
+     return file;
+   }
+ 
+-  public UnsafeSorterSpillReader getReader(SerializerManager serializerManager) throws IOException {
+-    return new UnsafeSorterSpillReader(serializerManager, file, blockId);
++  public UnsafeSorterSpillReader getReader(SerializerManager serializerManager, TaskMetrics taskMetrics) throws IOException {
++    return new UnsafeSorterSpillReader(serializerManager, taskMetrics, file, blockId);
+   }
+ 
+   public int recordsSpilled() {
