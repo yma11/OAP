@@ -67,17 +67,15 @@
                         <configuration>
                             <source>${java.version}</source>
                             <target>${java.version}</target>
-                            <excludes>
-                                <exclude>**/pmemblk/PMemBlkMetaStore.java</exclude>
-                                <exclude>**/pmemblk/PMemKVDatabase.java</exclude>
-                            </excludes>
                             <encoding>UTF-8</encoding>
                             <maxmem>1024m</maxmem>
                             <fork>true</fork>
                             <compilerArgs>
                                 <arg>-Xlint:all,-serial,-path</arg>
                             </compilerArgs>
-
+                            <excludes>
+                                <exclude>**/pmemblk/*.java</exclude>
+                            </excludes>
                         </configuration>
                     </execution>
                     <execution>
@@ -102,7 +100,6 @@
                         </configuration>
                     </execution>
                 </executions>
-
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
